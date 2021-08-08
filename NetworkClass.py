@@ -530,7 +530,7 @@ class Network:
         return np.sqrt(r1[0] ** 2 + r2[0] ** 2 - r1[0] * r2[0] * np.cos(r1[1] - r2[1]))
 
     def get_phi(self,SPC, r, t, sigma, dim):
-        phi = 0
+        phi = np.zeros(t.shape[0])
         for i, channel in enumerate(SPC):
             z, x, y = self.get_pos(i)
             r0 = self.get_r(x, y)
