@@ -80,7 +80,7 @@ class Network:
         self.cluster_pr = cluster_pr
         self.w = 1  # Synaptic weights
         self.ref = np.array(ref)
-        self.input_num = input_num
+        self.input_num = input_num*clusters
         self.input_t = np.full(self.input_num, -1, dtype=float)
         self.input_t_syn = np.zeros(self.input_num)
         self.connect_const = connect_const  # Connections distribution parameter (EE,EI,IE,II)
@@ -312,10 +312,19 @@ class Network:
         mid = self.dim[2] // 2 - 0.5
 
         for i in np.arange(self.input_num):
+            if i < self.input_num//self.clusters:
+                input_to = range(self.neuron_num // self.clusters)
+            else:
+                input_to = range(self.neuron_num // self.clusters, self.neuron_num)
 
             # Centered input
-            for j in range(self.neuron_num//self.clusters):
-                neurons_dist = np.linalg.norm(self.get_pos(j) - (0, self.dim[2] - mid, mid))
+            for j in input_to:
+                if i < self.input_num//self.clusters:
+                    neurons_dist = np.linalg.norm(self.get_pos(j) - (0, mid, mid))
+
+                else:
+                    neurons_dist = np.linalg.norm(self.get_pos(j) - (0, self.dim[1] - mid, mid))
+
                 c = .242
 
                 connect_pr = c * np.exp(-(neurons_dist / (self.lamb_in)) ** 2)
@@ -497,11 +506,15 @@ class Network:
             plt.xlim(t1 - 1, tn + 1)
             plt.show()
 
-    def generate_spiketrain(self,t,dt,f,input_num,plot_bool=False):
+    def generate_spiketrain(self,t,dt,f,input_num,plot_bool=False,t_start=0,t_end=-1):
 
         # input_num - number of spikes trains
+        if t_end == -1:
+            t_end=int(t/dt)
+        spike_train = np.random.rand(int(t/dt),input_num) < f*dt
+        spike_train[:int(t_start)] = 0
+        spike_train[int(t_end):] = 0
 
-        spike_train = np.random.rand( int(t/dt),input_num) < f*dt
         if plot_bool:
             plot_spike_train(spike_train)
         return(spike_train)
@@ -525,7 +538,4 @@ class Network:
                 dist = self.calc_dist(r, r0)
                 phi += channel[t] / (dist * (4 * np.pi * sigma))
         return phi / (SPC.shape[0] - 1)
-
-
-
 
