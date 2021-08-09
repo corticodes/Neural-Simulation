@@ -509,6 +509,11 @@ class Network:
     def generate_spiketrain(self,t,dt,f,input_num,plot_bool=False,t_start=0,t_end=-1):
 
         # input_num - number of spikes trains
+        # t simulation duration [ms]
+        # dt simulation step [ms]
+        # t_start spike train start time [SAMPLES]
+        # t_end spike train end time [SAMPLES]
+
         if t_end == -1:
             t_end=int(t/dt)
         spike_train = np.random.rand(int(t/dt),input_num) < f*dt
@@ -516,8 +521,12 @@ class Network:
         spike_train[int(t_end):] = 0
 
         if plot_bool:
-            plot_spike_train(spike_train)
+            self.plot_spike_train(spike_train)
         return(spike_train)
+
+    def plot_spike_train(self, spike_train):
+        [plt.scatter(np.nonzero(i)[0] * self.dt, np.full(np.nonzero(i)[0].shape[0], j), color='darkblue', s=.2) for j, i in
+         enumerate(spike_train.T)]
 
     # LFP functions
     @staticmethod
