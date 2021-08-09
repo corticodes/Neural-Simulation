@@ -527,6 +527,7 @@ class Network:
     def plot_spike_train(self, spike_train):
         [plt.scatter(np.nonzero(i)[0] * self.dt, np.full(np.nonzero(i)[0].shape[0], j), color='darkblue', s=.2) for j, i in
          enumerate(spike_train.T)]
+        plt.xlabel('time (ms)')
 
     # LFP functions
     @staticmethod
