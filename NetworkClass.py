@@ -170,6 +170,7 @@ class Network:
         self.active = np.zeros(self.activity_size, dtype=int)
         self.A = np.zeros(self.activity_size)
         self.isi = []
+        self.input_t = np.full(self.input_num, -1, dtype=float)
 
         self.input_t = np.full(self.input_num, -1, dtype=float)
 
