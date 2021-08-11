@@ -33,7 +33,8 @@ class Network:
     def __init__(self, model='LIF', dim=(15, 3, 3), Vreset=5, inh_frac=0.2, R=1, tau=30, Vr=0, Vth=15, lamb=2,
                  ref=(2, 3),lamb_in=2,tau_psc=(6, 3), keep_data=1, dt=0.01, tauRise=1, tauDec=6.5, Vk=-60.6, gk=10,
                  alpha=0.02, tauN=230, J=0.0615, input_num=1, clusters=1, cluster_pr=0.1,
-                 V_syn={(1, 1): 5, (1, 0): 25, (0, 1): -20, (0, 0): -20},connect_const={(1, 1): 0.3, (1, 0): 0.2, (0, 1): 0.4,(0, 0): 0.1}):
+                 V_syn={(1, 1): 5, (1, 0): 25, (0, 1): -20, (0, 0): -20},connect_const={(1, 1): 0.3, (1, 0): 0.2, (0, 1): 0.4,(0, 0): 0.1},
+                 cluster_map = [],connect_type = 0):
         """
         Initialize network
             model - Neurons spiking model
@@ -52,7 +53,9 @@ class Network:
             lamb - Connections distribution parameter
             clusters - Number of clusters. number of neurons will be multiplied bu cluster num
             cluster_pr - The probability of connection between two neurons in different clusters
-
+            cluster_map - Array (size #neurons) that maps each neuron to a cluster (0 and 1)
+            connect_type - Connection type of neurons from different classes. if 0 connect by distance between neurons,
+                                                                            if 1 connect by distance from cluster center
 
             // SFA parameters
             Vk - K+ reversal potential (mV)
@@ -74,9 +77,21 @@ class Network:
         self.t = 0  # Current time
         self.dim = np.array(dim)
         self.clusters = clusters
-        if clusters > 1:
-            self.dim[1] = dim[1] * clusters
+        self.dim[1] = dim[1] * clusters
+
         self.neuron_num = np.prod(self.dim)
+
+        if clusters > 1:
+            if len(cluster_map)==0:
+                self.cluster_map = np.zeros(self.neuron_num, dtype=int)
+                self.cluster_map[self.neuron_num//2:] = 1
+            else:
+                self.cluster_map = cluster_map
+            self.mid = np.zeros((2,2))
+            for i in [0,1]:
+                self.mid[i,0] = (self.get_pos(np.where(self.cluster_map==i)[0][-1])[2]+self.get_pos(np.where(self.cluster_map==i)[0][0])[2])/2
+                self.mid[i,1] = (self.get_pos(np.where(self.cluster_map==i)[0][-1])[1]+self.get_pos(np.where(self.cluster_map==i)[0][0])[1])/2
+        self.connect_type = connect_type
         self.cluster_pr = cluster_pr
         self.w = 1  # Synaptic weights
         self.ref = np.array(ref)
@@ -84,6 +99,8 @@ class Network:
         self.input_t = np.full(self.input_num, -1, dtype=float)
         self.input_t_syn = np.zeros(self.input_num)
         self.connect_const = connect_const  # Connections distribution parameter (EE,EI,IE,II)
+
+
 
 
         self.lamb_in = lamb_in
@@ -128,6 +145,7 @@ class Network:
 
         self.reset_history()
 
+
     def reset_history(self):
         """
         Reset network data
@@ -152,6 +170,8 @@ class Network:
         self.active = np.zeros(self.activity_size, dtype=int)
         self.A = np.zeros(self.activity_size)
         self.isi = []
+
+        self.input_t = np.full(self.input_num, -1, dtype=float)
 
     def LIF(self):
         """
@@ -309,21 +329,13 @@ class Network:
         """
         Generate connections in the network as desribed in Mass, 2002.
         """
-        mid = self.dim[2] // 2 - 0.5
 
         for i in np.arange(self.input_num):
-            if i < self.input_num//self.clusters:
-                input_to = range(self.neuron_num // self.clusters)
-            else:
-                input_to = range(self.neuron_num // self.clusters, self.neuron_num)
-
+            cluster_cur = int(i >= self.input_num//self.clusters)
             # Centered input
-            for j in input_to:
-                if i < self.input_num//self.clusters:
-                    neurons_dist = np.linalg.norm(self.get_pos(j) - (0, mid, mid))
+            for j in np.where(self.cluster_map==cluster_cur)[0]:
 
-                else:
-                    neurons_dist = np.linalg.norm(self.get_pos(j) - (0, self.dim[1] - mid, mid))
+                neurons_dist = np.linalg.norm(self.get_pos(j) - (0, self.mid[cluster_cur][1], self.mid[cluster_cur][0]))
 
                 c = .242
 
@@ -343,9 +355,10 @@ class Network:
                     continue
                 # Get euclidean distance
 
-                if i // (self.neuron_num / self.clusters) != j // (self.neuron_num / self.clusters) and self.clusters>1:
-                    if i > j:
-                        neurons_dist = (np.linalg.norm(self.get_pos(i) - (0,self.dim[1]-mid,mid)) + np.linalg.norm(self.get_pos(j) - (0,mid,mid)))/2
+                if self.cluster_map[i] != self.cluster_map[j] and self.clusters>1 and self.connect_type==1:
+                    if self.cluster_map[i] > self.cluster_map[j]:
+                        neurons_dist = (np.linalg.norm(self.get_pos(i) - (0,self.mid[self.cluster_map[i]][1],self.mid[self.cluster_map[i]][0])) +
+                                        np.linalg.norm(self.get_pos(j) - (0,self.mid[self.cluster_map[j]][1],self.mid[self.cluster_map[j]][0])))/2
                         # Calc connection probability
                         c = self.cluster_pr
                         connect_pr = c * np.exp(-(neurons_dist / self.lamb) ** 2)
@@ -457,7 +470,7 @@ class Network:
         Plot given neurons activity (seperately)
 
             pos - Neurons indices for plot. Default -1 plot a random neuron.
-            what - Plot V (0) spikes (1) ISI (2) A (3)
+            what - Plot V (0) spikes (1) ISI (2) A (3) EPSC (4)
 
         """
 
@@ -506,6 +519,14 @@ class Network:
             plt.xlim(t1 - 1, tn + 1)
             plt.show()
 
+        if np.isin(4, what):
+            plt.figure()
+            plt.plot(np.linspace(0, self.t, int(self.t / self.dt) + 1), self.EPSC_seq[pos, :])
+            plt.xlabel('Time (ms)')
+            plt.ylabel('EPSC')
+            plt.xlim(t1 - 1, tn + 1)
+            plt.show()
+
     def generate_spiketrain(self,t,dt,f,input_num,plot_bool=False,t_start=0,t_end=-1):
 
         # input_num - number of spikes trains
@@ -548,4 +569,3 @@ class Network:
                 dist = self.calc_dist(r, r0)
                 phi += channel[t] / (dist * (4 * np.pi * sigma))
         return phi / (SPC.shape[0] - 1)
-
