@@ -172,8 +172,6 @@ class Network:
         self.isi = []
         self.input_t = np.full(self.input_num, -1, dtype=float)
 
-        self.input_t = np.full(self.input_num, -1, dtype=float)
-
     def LIF(self):
         """
         Caluclate LIF derivative:
