@@ -354,20 +354,27 @@ class Network:
                     continue
                 # Get euclidean distance
 
-                if self.cluster_map[i] != self.cluster_map[j] and self.clusters>1 and self.connect_type==1:
+                if self.cluster_map[i] != self.cluster_map[j] and self.clusters > 1:
+                    c = self.cluster_pr
                     if self.cluster_map[i] > self.cluster_map[j]:
-                        neurons_dist = (np.linalg.norm(self.get_pos(i) - (0,self.mid[self.cluster_map[i]][1],self.mid[self.cluster_map[i]][0])) +
-                                        np.linalg.norm(self.get_pos(j) - (0,self.mid[self.cluster_map[j]][1],self.mid[self.cluster_map[j]][0])))/2
-                        # Calc connection probability
-                        c = self.cluster_pr
-                        connect_pr = c * np.exp(-(neurons_dist / self.lamb) ** 2)
-                    else:
                         connect_pr = 0
+                    elif self.connect_type == 1:
+                        neurons_dist = (np.linalg.norm(
+                            self.get_pos(i) - (0, self.mid[self.cluster_map[i]][1], self.mid[self.cluster_map[i]][0])) +
+                                        np.linalg.norm(self.get_pos(j) - (
+                                        0, self.mid[self.cluster_map[j]][1], self.mid[self.cluster_map[j]][0]))) / 2
+                        # Calc connection probability
+                        connect_pr = c * np.exp(-(neurons_dist / self.lamb) ** 2)
+
+                    else:
+                        neurons_dist = np.linalg.norm(self.get_pos(i) - self.get_pos(j))
+
+                        # Calc connection probability
+                        connect_pr = c * np.exp(-(neurons_dist / self.lamb) ** 2)
                 else:
                     neurons_dist = np.linalg.norm(self.get_pos(i) - self.get_pos(j))
 
                     # Calc connection probability
-                    types = (not (np.isin(i, self.inh_idx)), not (np.isin(j, self.inh_idx)))
                     c = self.connect_const[(not (np.isin(i, self.inh_idx)), not (np.isin(j, self.inh_idx)))]
                     connect_pr = c * np.exp(-(neurons_dist / self.lamb) ** 2)
 
