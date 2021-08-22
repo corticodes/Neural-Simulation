@@ -186,7 +186,7 @@ class Network:
         """
 
         dt = self.t - self.spikes_t
-        Isyn = np.exp(-dt / self.tau_psc[self.type_array]) * np.heaviside(dt, 1)
+        Isyn = self.J * (np.exp(-dt / self.tauDec) - np.exp(-dt / self.tauRise))
         Isyn[self.spikes_t < 0] = 0
 
         return Isyn
@@ -197,7 +197,7 @@ class Network:
         """
 
         dt = self.t - self.input_t
-        Isyn = np.exp(-dt / self.tau_psc[0]) * np.heaviside(dt, 1)
+        Isyn = self.J * (np.exp(-dt / self.tauDec) - np.exp(-dt / self.tauRise))
         Isyn[self.input_t < 0] = 0
 
         return Isyn
